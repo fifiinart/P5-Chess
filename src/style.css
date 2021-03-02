@@ -1,0 +1,19 @@
+#container {
+  margin: auto;
+  width: 100vh;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+
+}
+
+body {
+  margin: 0;
+  background-color: rgb(57, 66, 75);
+}
+
+#sketch {
+  padding: 0;
+  margin: auto;
+  width: 80vh;
+}
