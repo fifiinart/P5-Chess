@@ -1,7 +1,7 @@
 import "./style.css"
 import sprites from '../chess-sprites.png'
 import P5, { Vector, Image } from "p5"
-import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, FenPiece } from "./constants";
+import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, FenPiece, BOARD_FILL_RATIO } from "./constants";
 
 new P5((p5: P5) => {
   let turn = Piece.White;
@@ -9,15 +9,18 @@ new P5((p5: P5) => {
 
   let CANVAS_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
 
-  let TILE_WIDTH = CANVAS_SIZE / BOARD_WIDTH;
-  let TILE_HEIGHT = CANVAS_SIZE / BOARD_HEIGHT;
+  let MARGIN = (CANVAS_SIZE - CANVAS_SIZE * BOARD_FILL_RATIO) / 2
+
+  let TILE_WIDTH = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
+  let TILE_HEIGHT = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
 
   const PieceImgs: Map<number, Image> = new Map();
 
-  const LIGHT_TILE_COLOR = [235, 236, 208];
-  const DARK_TILE_COLOR = [120, 148, 86];
+  const LIGHT_TILE_COLOR = [232, 235, 239];
+  const DARK_TILE_COLOR = [125, 135, 150];
 
   const positions = [...Array(BOARD_HEIGHT * BOARD_WIDTH).keys()]
+  let chessBoardState = parseFenString(STARTING_POSITION)
 
   p5.preload = () => {
     p5.loadImage(sprites, p5Sprites => {
@@ -36,28 +39,34 @@ new P5((p5: P5) => {
     const canvas = p5.createCanvas(CANVAS_SIZE, CANVAS_SIZE).id("sketch")
     container.child(canvas)
 
+    p5.textAlign(p5.CENTER, p5.CENTER)
+    p5.textSize(CANVAS_SIZE / 25);
     p5.noStroke();
     parseFenString(STARTING_POSITION);
   }
   p5.windowResized = () => {
     CANVAS_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
-    TILE_WIDTH = CANVAS_SIZE / BOARD_WIDTH;
-    TILE_HEIGHT = CANVAS_SIZE / BOARD_HEIGHT;
+    TILE_WIDTH = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
+    TILE_HEIGHT = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
+    MARGIN = (CANVAS_SIZE - CANVAS_SIZE * BOARD_FILL_RATIO) / 2
+    p5.textSize(CANVAS_SIZE / 25);
     p5.resizeCanvas(CANVAS_SIZE, CANVAS_SIZE)
   }
   p5.draw = () => {
     drawBoard();
-    for (const [position, piece] of parseFenString("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R")) drawPiece(position, piece)
   }
 
   function parseFenString(fenString: string) {
     const pieces: [number, number][] = [];
     let position = 0;
     for (const char of fenString) {
-      if (char === '/') continue;
+      if (char === '/') {
+        position = Math.floor(position / BOARD_WIDTH) * BOARD_WIDTH
+        continue;
+      };
 
       if (!Number.isNaN(+char) && +char <= 8) {
-        pieces.push(...Array(+char).fill(null).map<[number, number]>(() => [position++, Piece.None]))
+        position += +char;
       } else {
         if (char in FenPiece) {
           pieces.push([position++, FenPiece[<keyof typeof FenPiece>char]]);
@@ -84,10 +93,11 @@ new P5((p5: P5) => {
     if (!PieceImgs.has(piece)) {
       throw new Error(`Invalid Piece: ${piece}`);
     }
-    p5.image(PieceImgs.get(piece)!, _position.x * TILE_WIDTH, _position.y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+    p5.image(PieceImgs.get(piece)!, _position.x * TILE_WIDTH + MARGIN, _position.y * TILE_HEIGHT + MARGIN, TILE_WIDTH, TILE_HEIGHT)
   }
 
   const drawBoard = () => {
+    p5.background(57, 66, 75)
     for (const pos of positions) {
       const { x, y } = getVectorFromPosition(pos)
       p5.fill(
@@ -95,7 +105,17 @@ new P5((p5: P5) => {
           DARK_TILE_COLOR :
           LIGHT_TILE_COLOR
       )
-      p5.rect(x * TILE_WIDTH, y * TILE_HEIGHT, TILE_WIDTH, TILE_HEIGHT)
+      p5.rect(x * TILE_WIDTH + MARGIN, y * TILE_HEIGHT + MARGIN, TILE_WIDTH, TILE_HEIGHT)
     }
+
+    p5.fill(p5.lerpColor(p5.color(LIGHT_TILE_COLOR), p5.color(DARK_TILE_COLOR), 0.5))
+    for (const tile of Array(BOARD_HEIGHT).keys()) {
+      p5.text(BOARD_HEIGHT - tile, MARGIN / 2, tile * TILE_HEIGHT + MARGIN + TILE_HEIGHT / 2)
+      p5.text(BOARD_HEIGHT - tile, CANVAS_SIZE - MARGIN / 2, tile * TILE_HEIGHT + MARGIN + TILE_HEIGHT / 2)
+      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + MARGIN + TILE_WIDTH / 2, MARGIN / 2)
+      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + MARGIN + TILE_WIDTH / 2, CANVAS_SIZE - MARGIN / 2)
+    }
+
+    for (const [position, piece] of chessBoardState) drawPiece(position, piece)
   }
 })

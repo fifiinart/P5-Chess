@@ -1,7 +1,8 @@
+export const BOARD_FILL_RATIO = 7 / 8;
 export const BOARD_WIDTH = 8;
 export const BOARD_HEIGHT = 8;
 
-export const WINDOW_FILL_RATIO = 7 / 8;
+export const WINDOW_FILL_RATIO = 1;
 
 export enum Piece {
   None,
