@@ -1,7 +1,9 @@
 import "./style.css"
 import sprites from '../chess-sprites.png'
 import P5, { Vector, Image } from "p5"
-import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, FenPiece, BOARD_FILL_RATIO, BOARD_TILES } from "./constants";
+import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, BOARD_FILL_RATIO } from "./constants";
+import { generateMoves } from "./generate-moves";
+import { parseFenString, getVectorFromPosition, getPositionFromVector } from "./util";
 
 new P5((p5: P5) => {
   let turn = Piece.White;
@@ -22,12 +24,15 @@ new P5((p5: P5) => {
   const LIGHT_TILE_COLOR = [232, 235, 239];
   const DARK_TILE_COLOR = [125, 135, 150];
 
+  let whiteToMove = true;
+
   const positions = [...Array(BOARD_HEIGHT * BOARD_WIDTH).keys()]
   let chessBoardState = parseFenString(STARTING_POSITION);
 
   let hand: number = Piece.None;
   let position: null | number = null;
   let handState: "none" | "drag" = "none";
+  let validMoves: null | number[] = null;
 
   p5.preload = () => {
     p5.loadImage(sprites, p5Sprites => {
@@ -65,16 +70,19 @@ new P5((p5: P5) => {
     drawBoard();
     highlightTile([255, 255, 0], getHoveredSquare())
     highlightTile([0, 255 / 3, 255 / 6], position)
+    for (const position of validMoves ?? []) {
+      drawCircleOverTile([150, 10, 10], position)
+    }
     showItemInHand(hand)
   }
 
-  p5.mouseDragged = grabItemByDragging;
-  p5.mouseReleased = releaseItem;
+  p5.mouseDragged = grabPiece;
+  p5.mouseReleased = dropPiece;
   p5.keyPressed = () => {
     switch (p5.keyCode) {
       case p5.ESCAPE:
       case p5.ENTER:
-        getRidOfItem();
+        trashPiece();
         break;
     }
   }
@@ -86,69 +94,66 @@ new P5((p5: P5) => {
     p5.rect(x * TILE_WIDTH + BOARD_PADDING + CANVAS_MARGIN_X, y * TILE_HEIGHT + BOARD_PADDING + CANVAS_MARGIN_Y, TILE_WIDTH, TILE_HEIGHT)
   }
 
-  function releaseItem() {
+  function drawCircleOverTile([r, g, b]: [number, number, number], position: number | null) {
+    if (position == null) return;
+    p5.fill(r, g, b, 255)
+    const { x, y } = getVectorFromPosition(position);
+    p5.ellipse(
+      x * TILE_WIDTH + TILE_WIDTH / 2 + BOARD_PADDING + CANVAS_MARGIN_X,
+      y * TILE_HEIGHT + TILE_HEIGHT / 2 + BOARD_PADDING + CANVAS_MARGIN_Y,
+      TILE_WIDTH / 4,
+      TILE_HEIGHT / 4
+    )
+  }
+
+  function dropPiece() {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare !== null) {
       if (handState === "drag" && hand !== Piece.None) {
-        chessBoardState[hoveredSquare] = hand;
-
-        hand = Piece.None;
-        position = null;
+        if (validMoves && validMoves.includes(hoveredSquare)) {
+          chessBoardState[hoveredSquare] = hand;
+          hand = Piece.None;
+          position = null;
+          validMoves = null;
+          whiteToMove = !whiteToMove;
+          console.log(whiteToMove);
+        } else {
+          trashPiece();
+        }
       }
     }
     handState = "none"
   }
 
-  function getRidOfItem() {
+  function trashPiece() {
     if (position !== null && handState === "drag") {
       chessBoardState[position] = hand;
       handState = "none";
       hand = Piece.None;
       position = null;
+      validMoves = null;
     }
   }
-
-  function showItemInHand(piece: number) {
-    p5.image(getSprite(piece), p5.mouseX - TILE_WIDTH / 2, p5.mouseY - TILE_HEIGHT / 2, TILE_WIDTH, TILE_HEIGHT)
-  }
-
-  function grabItemByDragging() {
+  function grabPiece() {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare !== null && hand === Piece.None) {
       if (handState === "none") {
         const tile = chessBoardState[hoveredSquare]
         if (tile !== Piece.None && tile !== undefined) {
           position = hoveredSquare;
-
           hand = tile;
           chessBoardState[hoveredSquare] = Piece.None;
+          validMoves = generateMoves(position, hand, chessBoardState, whiteToMove);
         }
       }
     }
     handState = "drag";
   }
-
-  function parseFenString(fenString: string) {
-    const pieces: number[] = Array(BOARD_TILES).fill(0);
-    let position = 0;
-    for (const char of fenString) {
-      if (char === '/') {
-        position = Math.floor(position / BOARD_WIDTH) * BOARD_WIDTH
-        continue;
-      };
-
-      if (!Number.isNaN(+char) && +char <= 8) {
-        position += +char;
-      } else {
-        if (char in FenPiece) {
-          pieces[position++] = FenPiece[<keyof typeof FenPiece>char];
-          continue
-        }
-        throw new Error("Invalid FEN string")
-      }
-    }
-    return pieces;
+  function showItemInHand(piece: number) {
+    p5.image(getSprite(piece), p5.mouseX - TILE_WIDTH / 2, p5.mouseY - TILE_HEIGHT / 2, TILE_WIDTH, TILE_HEIGHT)
   }
+
+
 
   const getHoveredSquare = (): number | null => {
     const mappedX = p5.map(p5.mouseX, BOARD_PADDING + CANVAS_MARGIN_X, SCREEN_SIZE - BOARD_PADDING + CANVAS_MARGIN_X, 0, BOARD_WIDTH);
@@ -157,8 +162,6 @@ new P5((p5: P5) => {
     return getPositionFromVector(p5.createVector(Math.floor(mappedX), Math.floor(mappedY)));
   }
 
-  const getPositionFromVector = (vector: Vector) => vector.y * BOARD_WIDTH + vector.x;
-  const getVectorFromPosition = (position: number) => p5.createVector(position % BOARD_WIDTH, Math.floor(position / BOARD_HEIGHT))
 
   function getSprite(piece: number) {
     if (piece === Piece.None) {
