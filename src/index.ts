@@ -27,7 +27,7 @@ new P5((p5: P5) => {
 
   let hand = Piece.None;
   let position: null | number = null;
-  let handState: "none" | "click" | "clicked" | "drag" | "dragged" | "trashed" = "none";
+  let handState: "none" | "drag" = "none";
 
   p5.preload = () => {
     p5.loadImage(sprites, p5Sprites => {
@@ -64,12 +64,12 @@ new P5((p5: P5) => {
   p5.draw = () => {
     drawBoard();
     highlightTile([255, 255, 0], getHoveredSquare())
+    highlightTile([0, 255 / 2, 0], position)
     showItemInHand(hand)
   }
 
   p5.mouseDragged = grabItemByDragging;
   p5.mouseReleased = releaseItem;
-  p5.mouseClicked = grabItemByClicking;
   p5.keyPressed = () => {
     switch (p5.keyCode) {
       case p5.ESCAPE:
@@ -87,20 +87,11 @@ new P5((p5: P5) => {
   }
 
   function releaseItem() {
-    console.log("release")
-    console.log(handState)
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare) {
-      if (handState === "click") handState = "clicked"
-      else if (handState === "clicked") {
+      if (handState === "drag") {
         chessBoardState[hoveredSquare] = hand;
-        handState = "none";
-        hand = Piece.None;
-        position = null;
-      }
-      else if (handState === "drag") {
-        chessBoardState[hoveredSquare] = hand;
-        handState = "dragged";
+        handState = "none"
         hand = Piece.None;
         position = null;
       }
@@ -108,11 +99,9 @@ new P5((p5: P5) => {
   }
 
   function getRidOfItem() {
-    console.log("trash")
-    console.log(handState)
-    if (position !== null && (handState === "click" || handState === "drag")) {
+    if (position !== null && handState === "drag") {
       chessBoardState[position] = hand;
-      handState = "trashed";
+      handState = "none";
       hand = Piece.None;
       position = null;
     }
@@ -122,36 +111,10 @@ new P5((p5: P5) => {
     p5.image(getSprite(piece), p5.mouseX - TILE_WIDTH / 2, p5.mouseY - TILE_HEIGHT / 2, TILE_WIDTH, TILE_HEIGHT)
   }
 
-  function grabItemByClicking() {
-    console.log("click")
-    console.log(handState)
-    const hoveredSquare = getHoveredSquare();
-    if (handState === "dragged") {
-      handState = "none";
-      return;
-    }
-    else if (handState === "clicked" || handState === "drag") {
-      console.log("release item in click")
-      releaseItem();
-      return;
-    }
-    if (hoveredSquare) {
-      if (handState === "none" || handState === "trashed") {
-        const tile = chessBoardState[hoveredSquare]
-        if (tile !== undefined) {
-          handState = "click";
-          hand = tile;
-          chessBoardState[hoveredSquare] = Piece.None;
-          position = hoveredSquare;
-        }
-      }
-    }
-  }
-
   function grabItemByDragging() {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare) {
-      if (handState === "none" || handState === "trashed") {
+      if (handState === "none") {
         const tile = chessBoardState[hoveredSquare]
         if (tile !== undefined) {
           handState = "drag";
