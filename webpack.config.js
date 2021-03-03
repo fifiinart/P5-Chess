@@ -41,7 +41,7 @@ module.exports = {
 
   plugins: [
     new HtmlWebpackPlugin({
-      title: "Chess.JS",
+      title: "Chess.TS",
       favicon: "pawn-white.png"
     })
   ],
