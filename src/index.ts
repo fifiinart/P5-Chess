@@ -88,7 +88,7 @@ new P5((p5: P5) => {
 
   function releaseItem() {
     const hoveredSquare = getHoveredSquare();
-    if (hoveredSquare) {
+    if (hoveredSquare !== null) {
       if (handState === "drag") {
         chessBoardState[hoveredSquare] = hand;
         handState = "none"
@@ -113,7 +113,7 @@ new P5((p5: P5) => {
 
   function grabItemByDragging() {
     const hoveredSquare = getHoveredSquare();
-    if (hoveredSquare) {
+    if (hoveredSquare !== null) {
       if (handState === "none") {
         const tile = chessBoardState[hoveredSquare]
         if (tile !== undefined) {
