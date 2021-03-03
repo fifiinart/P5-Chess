@@ -25,7 +25,7 @@ new P5((p5: P5) => {
   const positions = [...Array(BOARD_HEIGHT * BOARD_WIDTH).keys()]
   let chessBoardState = parseFenString(STARTING_POSITION);
 
-  let hand = Piece.None;
+  let hand: number = Piece.None;
   let position: null | number = null;
   let handState: "none" | "drag" = "none";
 
@@ -89,13 +89,14 @@ new P5((p5: P5) => {
   function releaseItem() {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare !== null) {
-      if (handState === "drag") {
+      if (handState === "drag" && hand !== Piece.None) {
         chessBoardState[hoveredSquare] = hand;
-        handState = "none"
+
         hand = Piece.None;
         position = null;
       }
     }
+    handState = "none"
   }
 
   function getRidOfItem() {
@@ -113,17 +114,18 @@ new P5((p5: P5) => {
 
   function grabItemByDragging() {
     const hoveredSquare = getHoveredSquare();
-    if (hoveredSquare !== null) {
+    if (hoveredSquare !== null && hand === Piece.None) {
       if (handState === "none") {
         const tile = chessBoardState[hoveredSquare]
-        if (tile !== undefined) {
-          handState = "drag";
+        if (tile !== Piece.None && tile !== undefined) {
+          position = hoveredSquare;
+
           hand = tile;
           chessBoardState[hoveredSquare] = Piece.None;
-          position = hoveredSquare;
         }
       }
     }
+    handState = "drag";
   }
 
   function parseFenString(fenString: string) {
