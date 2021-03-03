@@ -1,18 +1,21 @@
 import "./style.css"
 import sprites from '../chess-sprites.png'
 import P5, { Vector, Image } from "p5"
-import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, FenPiece, BOARD_FILL_RATIO } from "./constants";
+import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, FenPiece, BOARD_FILL_RATIO, BOARD_TILES } from "./constants";
 
 new P5((p5: P5) => {
   let turn = Piece.White;
   turn;
 
-  let CANVAS_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
+  let SCREEN_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
 
-  let MARGIN = (CANVAS_SIZE - CANVAS_SIZE * BOARD_FILL_RATIO) / 2
+  let CANVAS_MARGIN_X = (p5.windowWidth - SCREEN_SIZE) / 2;
+  let CANVAS_MARGIN_Y = (p5.windowHeight - SCREEN_SIZE) / 2;
 
-  let TILE_WIDTH = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
-  let TILE_HEIGHT = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
+  let BOARD_PADDING = (SCREEN_SIZE - SCREEN_SIZE * BOARD_FILL_RATIO) / 2
+
+  let TILE_WIDTH = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
+  let TILE_HEIGHT = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
 
   const PieceImgs: Map<number, Image> = new Map();
 
@@ -20,7 +23,11 @@ new P5((p5: P5) => {
   const DARK_TILE_COLOR = [125, 135, 150];
 
   const positions = [...Array(BOARD_HEIGHT * BOARD_WIDTH).keys()]
-  let chessBoardState = parseFenString(STARTING_POSITION)
+  let chessBoardState = parseFenString(STARTING_POSITION);
+
+  let hand = Piece.None;
+  let position: null | number = null;
+  let handState: "none" | "click" | "clicked" | "drag" | "dragged" | "trashed" = "none";
 
   p5.preload = () => {
     p5.loadImage(sprites, p5Sprites => {
@@ -36,28 +43,128 @@ new P5((p5: P5) => {
   p5.setup = () => {
     // Set up the canvas
     const container = p5.createDiv().id("container")
-    const canvas = p5.createCanvas(CANVAS_SIZE, CANVAS_SIZE).id("sketch")
+    const canvas = p5.createCanvas(p5.windowWidth, p5.windowHeight).id("sketch")
     container.child(canvas)
 
     p5.textAlign(p5.CENTER, p5.CENTER)
-    p5.textSize(CANVAS_SIZE / 25);
+    p5.textSize(SCREEN_SIZE / 25);
     p5.noStroke();
-    parseFenString(STARTING_POSITION);
   }
+
   p5.windowResized = () => {
-    CANVAS_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
-    TILE_WIDTH = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
-    TILE_HEIGHT = CANVAS_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
-    MARGIN = (CANVAS_SIZE - CANVAS_SIZE * BOARD_FILL_RATIO) / 2
-    p5.textSize(CANVAS_SIZE / 25);
-    p5.resizeCanvas(CANVAS_SIZE, CANVAS_SIZE)
+    CANVAS_MARGIN_X = (p5.windowWidth - SCREEN_SIZE) / 2;
+    CANVAS_MARGIN_Y = (p5.windowHeight - SCREEN_SIZE) / 2;
+    SCREEN_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
+    TILE_WIDTH = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
+    TILE_HEIGHT = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
+    BOARD_PADDING = (SCREEN_SIZE - SCREEN_SIZE * BOARD_FILL_RATIO) / 2
+    p5.resizeCanvas(p5.windowWidth, p5.windowHeight)
   }
+
   p5.draw = () => {
     drawBoard();
+    highlightTile([255, 255, 0], getHoveredSquare())
+    showItemInHand(hand)
+  }
+
+  p5.mouseDragged = grabItemByDragging;
+  p5.mouseReleased = releaseItem;
+  p5.mouseClicked = grabItemByClicking;
+  p5.keyPressed = () => {
+    switch (p5.keyCode) {
+      case p5.ESCAPE:
+      case p5.ENTER:
+        getRidOfItem();
+        break;
+    }
+  }
+
+  function highlightTile([r, g, b]: [number, number, number], position: number | null) {
+    if (position === null) return;
+    p5.fill(r, g, b, 255 / 2);
+    const { x, y } = getVectorFromPosition(position);
+    p5.rect(x * TILE_WIDTH + BOARD_PADDING + CANVAS_MARGIN_X, y * TILE_HEIGHT + BOARD_PADDING + CANVAS_MARGIN_Y, TILE_WIDTH, TILE_HEIGHT)
+  }
+
+  function releaseItem() {
+    console.log("release")
+    console.log(handState)
+    const hoveredSquare = getHoveredSquare();
+    if (hoveredSquare) {
+      if (handState === "click") handState = "clicked"
+      else if (handState === "clicked") {
+        chessBoardState[hoveredSquare] = hand;
+        handState = "none";
+        hand = Piece.None;
+        position = null;
+      }
+      else if (handState === "drag") {
+        chessBoardState[hoveredSquare] = hand;
+        handState = "dragged";
+        hand = Piece.None;
+        position = null;
+      }
+    }
+  }
+
+  function getRidOfItem() {
+    console.log("trash")
+    console.log(handState)
+    if (position !== null && (handState === "click" || handState === "drag")) {
+      chessBoardState[position] = hand;
+      handState = "trashed";
+      hand = Piece.None;
+      position = null;
+    }
+  }
+
+  function showItemInHand(piece: number) {
+    p5.image(getSprite(piece), p5.mouseX - TILE_WIDTH / 2, p5.mouseY - TILE_HEIGHT / 2, TILE_WIDTH, TILE_HEIGHT)
+  }
+
+  function grabItemByClicking() {
+    console.log("click")
+    console.log(handState)
+    const hoveredSquare = getHoveredSquare();
+    if (handState === "dragged") {
+      handState = "none";
+      return;
+    }
+    else if (handState === "clicked" || handState === "drag") {
+      console.log("release item in click")
+      releaseItem();
+      return;
+    }
+    if (hoveredSquare) {
+      if (handState === "none" || handState === "trashed") {
+        const tile = chessBoardState[hoveredSquare]
+        if (tile !== undefined) {
+          handState = "click";
+          hand = tile;
+          chessBoardState[hoveredSquare] = Piece.None;
+          position = hoveredSquare;
+        }
+      }
+    }
+  }
+
+  function grabItemByDragging() {
+    const hoveredSquare = getHoveredSquare();
+    if (hoveredSquare) {
+      if (handState === "none" || handState === "trashed") {
+        const tile = chessBoardState[hoveredSquare]
+        if (tile !== undefined) {
+          handState = "drag";
+          hand = tile;
+          chessBoardState[hoveredSquare] = Piece.None;
+          position = hoveredSquare;
+        }
+      }
+    }
   }
 
   function parseFenString(fenString: string) {
-    const pieces: [number, number][] = [];
+    const pieces: number[] = Array(BOARD_TILES).fill(0);
     let position = 0;
     for (const char of fenString) {
       if (char === '/') {
@@ -69,7 +176,7 @@ new P5((p5: P5) => {
         position += +char;
       } else {
         if (char in FenPiece) {
-          pieces.push([position++, FenPiece[<keyof typeof FenPiece>char]]);
+          pieces[position++] = FenPiece[<keyof typeof FenPiece>char];
           continue
         }
         throw new Error("Invalid FEN string")
@@ -78,8 +185,25 @@ new P5((p5: P5) => {
     return pieces;
   }
 
-  // const getPositionFromVector = (vector: Vector) => vector.x * BOARD_WIDTH + vector.y;
+  const getHoveredSquare = (): number | null => {
+    const mappedX = p5.map(p5.mouseX, BOARD_PADDING + CANVAS_MARGIN_X, SCREEN_SIZE - BOARD_PADDING + CANVAS_MARGIN_X, 0, BOARD_WIDTH);
+    const mappedY = p5.map(p5.mouseY, BOARD_PADDING + CANVAS_MARGIN_Y, SCREEN_SIZE - BOARD_PADDING + CANVAS_MARGIN_Y, 0, BOARD_HEIGHT);
+    if (mappedX < 0 || mappedX > BOARD_WIDTH || mappedY < 0 || mappedY > BOARD_HEIGHT) return null;
+    return getPositionFromVector(p5.createVector(Math.floor(mappedX), Math.floor(mappedY)));
+  }
+
+  const getPositionFromVector = (vector: Vector) => vector.y * BOARD_WIDTH + vector.x;
   const getVectorFromPosition = (position: number) => p5.createVector(position % BOARD_WIDTH, Math.floor(position / BOARD_HEIGHT))
+
+  function getSprite(piece: number) {
+    if (piece === Piece.None) {
+      return p5.createImage(SPRITE_SIZE, SPRITE_SIZE)
+    }
+    if (!PieceImgs.has(piece)) {
+      throw new Error(`Invalid Piece: ${piece}`);
+    }
+    return PieceImgs.get(piece)!
+  }
 
   function drawPiece(position: number, piece: number): void
   function drawPiece(position: Vector, piece: number): void
@@ -87,13 +211,7 @@ new P5((p5: P5) => {
     let _position: Vector;
     if (typeof position === 'number') _position = getVectorFromPosition(position)
     else _position = position;
-    if (piece === 0) {
-      return;
-    }
-    if (!PieceImgs.has(piece)) {
-      throw new Error(`Invalid Piece: ${piece}`);
-    }
-    p5.image(PieceImgs.get(piece)!, _position.x * TILE_WIDTH + MARGIN, _position.y * TILE_HEIGHT + MARGIN, TILE_WIDTH, TILE_HEIGHT)
+    p5.image(getSprite(piece), _position.x * TILE_WIDTH + BOARD_PADDING + CANVAS_MARGIN_X, _position.y * TILE_HEIGHT + BOARD_PADDING + CANVAS_MARGIN_Y, TILE_WIDTH, TILE_HEIGHT)
   }
 
   const drawBoard = () => {
@@ -105,17 +223,19 @@ new P5((p5: P5) => {
           DARK_TILE_COLOR :
           LIGHT_TILE_COLOR
       )
-      p5.rect(x * TILE_WIDTH + MARGIN, y * TILE_HEIGHT + MARGIN, TILE_WIDTH, TILE_HEIGHT)
+      p5.rect(x * TILE_WIDTH + BOARD_PADDING + CANVAS_MARGIN_X, y * TILE_HEIGHT + BOARD_PADDING + CANVAS_MARGIN_Y, TILE_WIDTH, TILE_HEIGHT)
     }
 
     p5.fill(p5.lerpColor(p5.color(LIGHT_TILE_COLOR), p5.color(DARK_TILE_COLOR), 0.5))
     for (const tile of Array(BOARD_HEIGHT).keys()) {
-      p5.text(BOARD_HEIGHT - tile, MARGIN / 2, tile * TILE_HEIGHT + MARGIN + TILE_HEIGHT / 2)
-      p5.text(BOARD_HEIGHT - tile, CANVAS_SIZE - MARGIN / 2, tile * TILE_HEIGHT + MARGIN + TILE_HEIGHT / 2)
-      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + MARGIN + TILE_WIDTH / 2, MARGIN / 2)
-      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + MARGIN + TILE_WIDTH / 2, CANVAS_SIZE - MARGIN / 2)
+      p5.text(BOARD_HEIGHT - tile, BOARD_PADDING / 2 + CANVAS_MARGIN_X, tile * TILE_HEIGHT + BOARD_PADDING + TILE_HEIGHT / 2 + CANVAS_MARGIN_Y)
+      p5.text(BOARD_HEIGHT - tile, SCREEN_SIZE - BOARD_PADDING / 2 + CANVAS_MARGIN_X, tile * TILE_HEIGHT + BOARD_PADDING + TILE_HEIGHT / 2 + CANVAS_MARGIN_Y)
+      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + BOARD_PADDING + TILE_WIDTH / 2 + CANVAS_MARGIN_X, BOARD_PADDING / 2 + CANVAS_MARGIN_Y)
+      p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + BOARD_PADDING + TILE_WIDTH / 2 + CANVAS_MARGIN_X, SCREEN_SIZE - BOARD_PADDING / 2 + CANVAS_MARGIN_Y)
     }
 
-    for (const [position, piece] of chessBoardState) drawPiece(position, piece)
+    for (const [position, piece] of [...chessBoardState.entries()]) {
+      drawPiece(position, piece)
+    }
   }
 })

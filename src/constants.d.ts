@@ -1,6 +1,7 @@
 export declare const BOARD_FILL_RATIO: number;
 export declare const BOARD_WIDTH = 8;
 export declare const BOARD_HEIGHT = 8;
+export declare const BOARD_TILES = 64;
 export declare const WINDOW_FILL_RATIO = 1;
 export declare enum Piece {
     None = 0,
