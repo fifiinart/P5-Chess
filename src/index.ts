@@ -64,7 +64,7 @@ new P5((p5: P5) => {
   p5.draw = () => {
     drawBoard();
     highlightTile([255, 255, 0], getHoveredSquare())
-    highlightTile([0, 255 / 2, 0], position)
+    highlightTile([0, 255 / 3, 255 / 6], position)
     showItemInHand(hand)
   }
 
