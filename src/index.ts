@@ -1,9 +1,9 @@
 import "./style.css"
 import sprites from '../chess-sprites.png'
 import P5, { Vector, Image } from "p5"
-import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, BOARD_FILL_RATIO } from "./constants";
+import { WINDOW_FILL_RATIO, BOARD_WIDTH, BOARD_HEIGHT, PIECE_ARRANGEMENTS, SPRITE_SIZE, STARTING_POSITION, Piece, BOARD_FILL_RATIO, BoardState } from "./constants";
 import { generateMoves } from "./generate-moves";
-import { parseFenString, getVectorFromPosition, getPositionFromVector } from "./util";
+import { parseFenString, getVectorFromPosition, getPositionFromVector, getPieceColor } from "./util";
 
 new P5((p5: P5) => {
   let turn = Piece.White;
@@ -24,10 +24,15 @@ new P5((p5: P5) => {
   const LIGHT_TILE_COLOR = [232, 235, 239];
   const DARK_TILE_COLOR = [125, 135, 150];
 
-  let whiteToMove = true;
-
   const positions = [...Array(BOARD_HEIGHT * BOARD_WIDTH).keys()]
-  let chessBoardState = parseFenString(STARTING_POSITION);
+
+  let boardState: BoardState = {
+    colorToMove: Piece.White,
+    whitePawnsThatHaventMoved: [],
+    blackPawnsThatHaventMoved: []
+  }
+
+  let board = parseFenString(STARTING_POSITION, boardState);
 
   let hand: number = Piece.None;
   let position: null | number = null;
@@ -70,9 +75,7 @@ new P5((p5: P5) => {
     drawBoard();
     highlightTile([255, 255, 0], getHoveredSquare())
     highlightTile([0, 255 / 3, 255 / 6], position)
-    for (const position of validMoves ?? []) {
-      drawCircleOverTile([150, 10, 10], position)
-    }
+    drawCircleOverTiles([150, 10, 10], validMoves)
     showItemInHand(hand)
   }
 
@@ -94,40 +97,50 @@ new P5((p5: P5) => {
     p5.rect(x * TILE_WIDTH + BOARD_PADDING + CANVAS_MARGIN_X, y * TILE_HEIGHT + BOARD_PADDING + CANVAS_MARGIN_Y, TILE_WIDTH, TILE_HEIGHT)
   }
 
-  function drawCircleOverTile([r, g, b]: [number, number, number], position: number | null) {
+  /** Draws a circle over a given position. */
+  function drawCircleOverTiles([r, g, b]: [number, number, number], position: number | null | number[]) {
     if (position == null) return;
+    const positions = typeof position === 'number' ? [position] : position
     p5.fill(r, g, b, 255)
-    const { x, y } = getVectorFromPosition(position);
-    p5.ellipse(
-      x * TILE_WIDTH + TILE_WIDTH / 2 + BOARD_PADDING + CANVAS_MARGIN_X,
-      y * TILE_HEIGHT + TILE_HEIGHT / 2 + BOARD_PADDING + CANVAS_MARGIN_Y,
-      TILE_WIDTH / 4,
-      TILE_HEIGHT / 4
-    )
+    for (const p of positions) {
+      const { x, y } = getVectorFromPosition(p);
+      p5.ellipse(
+        x * TILE_WIDTH + TILE_WIDTH / 2 + BOARD_PADDING + CANVAS_MARGIN_X,
+        y * TILE_HEIGHT + TILE_HEIGHT / 2 + BOARD_PADDING + CANVAS_MARGIN_Y,
+        TILE_WIDTH / 4,
+        TILE_HEIGHT / 4
+      )
+    }
   }
 
+  /** Drops the held piece onto the board. */
   function dropPiece() {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare !== null) {
       if (handState === "drag" && hand !== Piece.None) {
         if (validMoves && validMoves.includes(hoveredSquare)) {
-          chessBoardState[hoveredSquare] = hand;
+          updateBoardState(hoveredSquare, hand, position!);
+          board[hoveredSquare] = hand;
           hand = Piece.None;
           position = null;
           validMoves = null;
-          whiteToMove = !whiteToMove;
-          console.log(whiteToMove);
         } else {
           trashPiece();
         }
       }
-    }
+    } else trashPiece();
     handState = "none"
+  }
+
+  function updateBoardState(position: number, piece: number, startPosition: number) {
+    if (piece === (Piece.White | Piece.Pawn) && position !== startPosition) boardState.whitePawnsThatHaventMoved = boardState.whitePawnsThatHaventMoved.filter(((p) => p !== startPosition))
+    if (piece === (Piece.Black | Piece.Pawn) && position !== startPosition) boardState.blackPawnsThatHaventMoved = boardState.blackPawnsThatHaventMoved.filter(((p) => p !== startPosition))
+    boardState.colorToMove = boardState.colorToMove === Piece.White ? Piece.Black : Piece.White;
   }
 
   function trashPiece() {
     if (position !== null && handState === "drag") {
-      chessBoardState[position] = hand;
+      board[position] = hand;
       handState = "none";
       hand = Piece.None;
       position = null;
@@ -138,12 +151,12 @@ new P5((p5: P5) => {
     const hoveredSquare = getHoveredSquare();
     if (hoveredSquare !== null && hand === Piece.None) {
       if (handState === "none") {
-        const tile = chessBoardState[hoveredSquare]
-        if (tile !== Piece.None && tile !== undefined) {
+        const tile = board[hoveredSquare]
+        if (tile !== Piece.None && tile !== undefined && getPieceColor(tile) === boardState.colorToMove) {
           position = hoveredSquare;
           hand = tile;
-          chessBoardState[hoveredSquare] = Piece.None;
-          validMoves = generateMoves(position, hand, chessBoardState, whiteToMove);
+          board[hoveredSquare] = Piece.None;
+          validMoves = generateMoves(position, hand, board, boardState);
         }
       }
     }
@@ -202,7 +215,7 @@ new P5((p5: P5) => {
       p5.text(String.fromCharCode(tile + 97), tile * TILE_WIDTH + BOARD_PADDING + TILE_WIDTH / 2 + CANVAS_MARGIN_X, SCREEN_SIZE - BOARD_PADDING / 2 + CANVAS_MARGIN_Y)
     }
 
-    for (const [position, piece] of [...chessBoardState.entries()]) {
+    for (const [position, piece] of [...board.entries()]) {
       drawPiece(position, piece)
     }
   }

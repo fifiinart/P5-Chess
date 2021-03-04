@@ -1,3 +1,4 @@
+import { BoardState } from "./constants";
 export declare enum Direction {
     U = -8,
     UR = -7,
@@ -8,5 +9,4 @@ export declare enum Direction {
     L = -1,
     UL = -9
 }
-export declare function generateMoves(position: number, piece: number, chessBoardState: number[], whiteToMove: boolean): number[];
-export declare function generateSlidingMoves(position: number, piece: number, chessBoardState: number[], whiteToMove: boolean): number[];
+export declare function generateMoves(position: number, piece: number, board: number[], boardState: BoardState): number[];

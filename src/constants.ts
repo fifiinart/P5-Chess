@@ -35,3 +35,9 @@ export const FenPiece = {
 export const SPRITE_SIZE = 180;
 export const PIECE_ARRANGEMENTS = Array(2).fill(null).map((_, i) => [Piece.King, Piece.Queen, Piece.Bishop, Piece.Knight, Piece.Rook, Piece.Pawn].map(x => x | (i + 1)))
 export const STARTING_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+
+export interface BoardState {
+  whitePawnsThatHaventMoved: number[]
+  blackPawnsThatHaventMoved: number[]
+  colorToMove: number
+}

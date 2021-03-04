@@ -31,3 +31,8 @@ export declare const FenPiece: {
 export declare const SPRITE_SIZE = 180;
 export declare const PIECE_ARRANGEMENTS: number[][];
 export declare const STARTING_POSITION = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+export interface BoardState {
+    whitePawnsThatHaventMoved: number[];
+    blackPawnsThatHaventMoved: number[];
+    colorToMove: number;
+}
