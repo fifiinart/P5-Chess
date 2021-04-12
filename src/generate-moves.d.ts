@@ -9,4 +9,14 @@ export declare enum Direction {
     L = -1,
     UL = -9
 }
+export declare enum KnightDirection {
+    UL = -17,
+    UR = -15,
+    RU = -6,
+    RD = 10,
+    DR = 17,
+    DL = 15,
+    LD = 6,
+    LU = -10
+}
 export declare function generateMoves(position: number, piece: number, board: number[], boardState: BoardState): number[];
