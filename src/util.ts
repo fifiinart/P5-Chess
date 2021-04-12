@@ -1,5 +1,5 @@
 import { Vector } from "p5";
-import { BOARD_TILES, BOARD_WIDTH, FenPiece, BOARD_HEIGHT, BoardState } from "./constants";
+import { BOARD_TILES, BOARD_WIDTH, FenPiece, BOARD_HEIGHT, BoardState, Piece } from "./constants";
 
 export function parseFenString(fenString: string, state: BoardState) {
   const pieces: number[] = Array(BOARD_TILES).fill(0);
@@ -35,3 +35,12 @@ export const getVectorFromPosition = (position: number) => {
 
 export const getPieceColor = (piece: number) => piece & 0b00011;
 export const getPieceType = (piece: number) => piece & 0b11100;
+
+export const getOppositeColor = (color: number) => {
+  if (color === Piece.White) return Piece.Black;
+  if (color === Piece.Black) return Piece.White;
+  return Piece.None;
+}
+
+export const changePieceColor = (piece: number, color: number = getOppositeColor(getPieceColor(piece))) => color | getPieceType(piece)
+export const changePieceType = (piece: number, type: number) => getPieceColor(piece) | type

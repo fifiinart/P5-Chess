@@ -6,18 +6,17 @@ import { generateMoves } from "./generate-moves";
 import { parseFenString, getVectorFromPosition, getPositionFromVector, getPieceColor } from "./util";
 
 new P5((p5: P5) => {
-  let turn = Piece.White;
-  turn;
+  let SCREEN_SIZE: number
 
-  let SCREEN_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
+  let CANVAS_MARGIN_X: number 
+  let CANVAS_MARGIN_Y: number 
 
-  let CANVAS_MARGIN_X = (p5.windowWidth - SCREEN_SIZE) / 2;
-  let CANVAS_MARGIN_Y = (p5.windowHeight - SCREEN_SIZE) / 2;
+  let BOARD_PADDING: number
 
-  let BOARD_PADDING = (SCREEN_SIZE - SCREEN_SIZE * BOARD_FILL_RATIO) / 2
+  let TILE_WIDTH: number 
+  let TILE_HEIGHT: number
 
-  let TILE_WIDTH = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
-  let TILE_HEIGHT = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
+  resetCanvasConstants()
 
   const PieceImgs: Map<number, Image> = new Map();
 
@@ -38,6 +37,15 @@ new P5((p5: P5) => {
   let position: null | number = null;
   let handState: "none" | "drag" = "none";
   let validMoves: null | number[] = null;
+  
+  function resetCanvasConstants() {
+    CANVAS_MARGIN_X = (p5.windowWidth - SCREEN_SIZE) / 2;
+    CANVAS_MARGIN_Y = (p5.windowHeight - SCREEN_SIZE) / 2;
+    SCREEN_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
+    TILE_WIDTH = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
+    TILE_HEIGHT = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
+    BOARD_PADDING = (SCREEN_SIZE - SCREEN_SIZE * BOARD_FILL_RATIO) / 2
+  }
 
   p5.preload = () => {
     p5.loadImage(sprites, p5Sprites => {
@@ -55,19 +63,14 @@ new P5((p5: P5) => {
     const container = p5.createDiv().id("container")
     const canvas = p5.createCanvas(p5.windowWidth, p5.windowHeight).id("sketch")
     container.child(canvas)
+    resetCanvasConstants()
 
     p5.textAlign(p5.CENTER, p5.CENTER)
     p5.textSize(SCREEN_SIZE / 25);
     p5.noStroke();
   }
-
   p5.windowResized = () => {
-    CANVAS_MARGIN_X = (p5.windowWidth - SCREEN_SIZE) / 2;
-    CANVAS_MARGIN_Y = (p5.windowHeight - SCREEN_SIZE) / 2;
-    SCREEN_SIZE = Math.min(p5.windowWidth * WINDOW_FILL_RATIO, p5.windowHeight * WINDOW_FILL_RATIO);
-    TILE_WIDTH = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_WIDTH;
-    TILE_HEIGHT = SCREEN_SIZE * BOARD_FILL_RATIO / BOARD_HEIGHT;
-    BOARD_PADDING = (SCREEN_SIZE - SCREEN_SIZE * BOARD_FILL_RATIO) / 2
+    resetCanvasConstants()
     p5.resizeCanvas(p5.windowWidth, p5.windowHeight)
   }
 
