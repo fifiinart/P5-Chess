@@ -10,7 +10,6 @@
     "p5": "^1.2.0"
   },
   "scripts": {
-    "webpack-dev-server": "webpack serve",
     "dev": "webpack serve --mode=development",
     "prod": "webpack --mode=production"
   },
